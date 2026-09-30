@@ -35,7 +35,33 @@ class Game {
         status: status ?? this.status,
         rating: clearRating ? null : (rating ?? this.rating),
       );
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'title': title,
+        'platform': platform,
+        'status': status.name,
+        'rating': rating,
+      };
+
+  /// Throws on malformed input (wrong types, unknown status, rating out of
+  /// range) so the repository can skip the record.
+  static Game fromJson(Map<String, Object?> json) {
+    final rating = json['rating'] as int?;
+    if (rating != null && (rating < 1 || rating > 5)) {
+      throw FormatException('Rating out of range: $rating');
+    }
+    return Game(
+      id: json['id'] as int,
+      title: json['title'] as String,
+      platform: json['platform'] as String,
+      status: GameStatus.values.byName(json['status'] as String),
+      rating: rating,
+    );
+  }
 }
+
+Map<String, Object?> gameToJson(Game game) => game.toJson();
 
 String? validateGame(String title, String platform, Iterable<Game> existing) {
   final t = title.trim();

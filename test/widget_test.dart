@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:game_collection/main.dart';
 import 'package:game_collection/screens/home_screen.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('app shell shows collection and about tab', (tester) async {
     await tester.pumpWidget(const GameCollectionApp());
+    await tester.pumpAndSettle();
     expect(find.text('Game Collection'), findsWidgets);
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
@@ -14,6 +18,7 @@ void main() {
 
   testWidgets('add a game, mark completed and rate', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('add-game')));
     await tester.pump();
     expect(find.text('Title is required'), findsOneWidget);

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../data/game_repository.dart';
+import '../data/list_repository.dart';
 import '../logic/collection.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.repository});
+
+  /// Where games are stored. Defaults to an in-memory store (tests); the
+  /// app passes [deviceGameRepository].
+  final GameRepository? repository;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -17,6 +23,49 @@ class _HomeScreenState extends State<HomeScreen> {
   GameStatus? _filter;
   String? _error;
   int _nextId = 1;
+
+  late final GameRepository _repository =
+      widget.repository ?? InMemoryListRepository<Game>();
+  bool _loading = true;
+  String? _storageError;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final saved = await _repository.load();
+      if (!mounted) return;
+      setState(() {
+        _games
+          ..clear()
+          ..addAll(saved);
+        _nextId = saved.fold(0, (m, e) => e.id > m ? e.id : m) + 1;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _storageError = 'Saved games could not be read.';
+      });
+    }
+  }
+
+  Future<void> _persist() async {
+    try {
+      await _repository.save(List.of(_games));
+      if (mounted && _storageError != null) {
+        setState(() => _storageError = null);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _storageError = 'Could not save games on this device.');
+    }
+  }
 
   @override
   void dispose() {
@@ -40,10 +89,12 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       _title.clear();
     });
+    if (error == null) _persist();
   }
 
   void _update(Game g, Game updated) {
     setState(() => _games[_games.indexOf(g)] = updated);
+    _persist();
   }
 
   @override
@@ -56,6 +107,16 @@ class _HomeScreenState extends State<HomeScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_loading) const LinearProgressIndicator(),
+          if (_storageError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _storageError!,
+                key: const Key('storage-error'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           Row(
             children: [
               Expanded(
@@ -139,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSelected: (v) {
                     if (v == 'delete') {
                       setState(() => _games.remove(g));
+                      _persist();
                     } else if (v.startsWith('status:')) {
                       _update(
                         g,
