@@ -1,6 +1,8 @@
 /// Game collection model, filtering and stats.
 library;
 
+import 'package:characters/characters.dart';
+
 enum GameStatus {
   backlog('Backlog'),
   playing('Playing'),
@@ -63,15 +65,18 @@ class Game {
 
 Map<String, Object?> gameToJson(Game game) => game.toJson();
 
+/// Case- and whitespace-insensitive key used for duplicate detection, so
+/// `Zelda  BotW` and `zelda botw` count as the same title.
+String _key(String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
 String? validateGame(String title, String platform, Iterable<Game> existing) {
   final t = title.trim();
   if (t.isEmpty) return 'Title is required';
-  if (t.length > 100) return 'Title must be at most 100 characters';
+  // Grapheme clusters, so emoji and Thai combining marks count once.
+  if (t.characters.length > 100) return 'Title must be at most 100 characters';
   if (platform.trim().isEmpty) return 'Platform is required';
   final dup = existing.any(
-    (g) =>
-        g.title.toLowerCase() == t.toLowerCase() &&
-        g.platform.toLowerCase() == platform.trim().toLowerCase(),
+    (g) => _key(g.title) == _key(t) && _key(g.platform) == _key(platform),
   );
   if (dup) return 'That game is already in your collection';
   return null;

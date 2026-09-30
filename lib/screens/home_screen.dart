@@ -92,6 +92,27 @@ class _HomeScreenState extends State<HomeScreen> {
     if (error == null) _persist();
   }
 
+  void _delete(Game g) {
+    final index = _games.indexOf(g);
+    setState(() => _games.remove(g));
+    _persist();
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Deleted ${g.title}'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            if (!mounted || _games.contains(g)) return;
+            setState(() => _games.insert(index.clamp(0, _games.length), g));
+            _persist();
+          },
+        ),
+      ),
+    );
+  }
+
   void _update(Game g, Game updated) {
     setState(() => _games[_games.indexOf(g)] = updated);
     _persist();
@@ -145,13 +166,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           if (_error != null)
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                _error!,
+                key: const Key('add-error'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
           const SizedBox(height: 12),
           Text(
-            '${stats.total} games · '
+            '${stats.total} ${stats.total == 1 ? 'game' : 'games'} · '
             '${GameStatus.values.map((s) => '${stats.byStatus[s]} ${s.label.toLowerCase()}').join(' · ')}'
             '${stats.averageRating == null ? '' : ' · avg ${stats.averageRating!.toStringAsFixed(1)}★'}',
             key: const Key('stats'),
@@ -182,10 +207,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             onChanged: (_) => setState(() {}),
           ),
-          if (_games.isEmpty)
+          if (_games.isEmpty && !_loading)
             const Padding(
               padding: EdgeInsets.all(24),
               child: Text('Your collection is empty.',
+                  textAlign: TextAlign.center),
+            )
+          else if (visible.isEmpty && !_loading)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('No games match this filter.',
                   textAlign: TextAlign.center),
             ),
           for (final g in visible)
@@ -194,13 +225,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: Text(g.title),
                 subtitle: Text(
                   '${g.platform} · ${g.rating == null ? 'unrated' : '${g.rating}★'}',
+                  semanticsLabel: '${g.platform}, '
+                      '${g.rating == null ? 'unrated' : 'rated ${g.rating} of 5 stars'}',
                 ),
                 trailing: PopupMenuButton<String>(
                   tooltip: 'Change ${g.title}',
                   onSelected: (v) {
                     if (v == 'delete') {
-                      setState(() => _games.remove(g));
-                      _persist();
+                      _delete(g);
+                    } else if (v == 'unrate') {
+                      _update(g, g.copyWith(clearRating: true));
                     } else if (v.startsWith('status:')) {
                       _update(
                         g,
@@ -218,6 +252,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text('Mark ${s.label.toLowerCase()}')),
                     for (var r = 1; r <= 5; r++)
                       PopupMenuItem(value: 'rate:$r', child: Text('Rate $r★')),
+                    if (g.rating != null)
+                      const PopupMenuItem(
+                        value: 'unrate',
+                        child: Text('Clear rating'),
+                      ),
                     const PopupMenuItem(value: 'delete', child: Text('Delete')),
                   ],
                   child: Chip(label: Text(g.status.label)),
