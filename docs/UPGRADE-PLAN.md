@@ -28,6 +28,7 @@ Score: 7.5/10 — persisted collection with robust duplicate checks, undo, clear
 - Error states: filters/search with no results now say "No games match this filter." instead of an empty list; delete offers Undo (restoring the original position); a "Clear rating" menu item exposes the existing `clearRating` logic; the add-form error is a live region.
 - Accessibility: ratings are announced as "rated 3 of 5 stars" instead of "3 black star".
 - Edge-case unit tests: whitespace/case duplicates, emoji limits, empty stats, average ignoring unrated, Thai search, malformed JSON records, `copyWith` precedence. Widget tests: duplicate with extra spaces, no-match state, clear rating + undo delete, rating semantics, a11y guidelines, 200% text scale.
+- The 200% text-scale widget test now runs at a 360 px phone width (it previously used the 800 px default test surface); no overflow found.
 
 ## Done in pass 2
 
